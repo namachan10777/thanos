@@ -78,6 +78,7 @@ type Config struct {
 	Insecure           bool              `yaml:"insecure"`
 	SignatureV2        bool              `yaml:"signature_version2"`
 	SecretKey          string            `yaml:"secret_key"`
+	SessionToken       string            `yaml:"session_token"`
 	PutUserMetadata    map[string]string `yaml:"put_user_metadata"`
 	HTTPConfig         HTTPConfig        `yaml:"http_config"`
 	TraceConfig        TraceConfig       `yaml:"trace"`
@@ -217,6 +218,7 @@ func NewBucketWithConfig(logger log.Logger, config Config, component string) (*B
 			Value: credentials.Value{
 				AccessKeyID:     config.AccessKey,
 				SecretAccessKey: config.SecretKey,
+				SessionToken:    config.SessionToken,
 				SignerType:      credentials.SignatureV4,
 			},
 		})}
@@ -319,6 +321,14 @@ func validate(conf Config) error {
 
 	if conf.AccessKey != "" && conf.SecretKey == "" {
 		return errors.New("no s3 secret_key specified while access_key is present in config file; either both should be present in config or envvars/IAM should be used.")
+	}
+
+	if conf.SessionToken != "" && conf.AccessKey == "" {
+		return errors.New("no s3 access_key specified while session_token is present in config file; either both should be present in config or envvars/IAM should be used.")
+	}
+
+	if conf.SessionToken != "" && conf.SecretKey == "" {
+		return errors.New("no s3 secret_key specified while session_token is present in config file; either both should be present in config or envvars/IAM should be used.")
 	}
 
 	if conf.SSEConfig.Type == SSEC && conf.SSEConfig.EncryptionKey == "" {
@@ -509,10 +519,11 @@ func (b *Bucket) getServerSideEncryption(ctx context.Context) (encrypt.ServerSid
 
 func configFromEnv() Config {
 	c := Config{
-		Bucket:    os.Getenv("S3_BUCKET"),
-		Endpoint:  os.Getenv("S3_ENDPOINT"),
-		AccessKey: os.Getenv("S3_ACCESS_KEY"),
-		SecretKey: os.Getenv("S3_SECRET_KEY"),
+		Bucket:       os.Getenv("S3_BUCKET"),
+		Endpoint:     os.Getenv("S3_ENDPOINT"),
+		AccessKey:    os.Getenv("S3_ACCESS_KEY"),
+		SecretKey:    os.Getenv("S3_SECRET_KEY"),
+		SessionToken: os.Getenv("S3_SESSION_TOKEN"),
 	}
 
 	c.Insecure, _ = strconv.ParseBool(os.Getenv("S3_INSECURE"))
